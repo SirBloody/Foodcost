@@ -10,8 +10,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 
 
-user = "root"
-password = "P2wcio27"
+user = ""
+password = ""
 # Konfiguracja bazy danych
 DATABASE_URL = f"mysql+pymysql://{user}:{password}@localhost:3306/production"
 engine = create_engine(DATABASE_URL)
