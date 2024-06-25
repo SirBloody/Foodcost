@@ -1,17 +1,18 @@
 import tkinter as tk
-from datetime import datetime
+from datetime import datetime, date
 from tkinter import ttk, messagebox, filedialog
-from sqlalchemy import create_engine, Column, Integer, String, Float, Table, ForeignKey, select, update
+from sqlalchemy import create_engine, Column, Integer, String, Float, Table, ForeignKey, select, update, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker, joinedload
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
+from testscroll import ScrollableFrame
+from sqlalchemy.dialects.mysql import DECIMAL, TINYINT
 
-
-user = "root"
-password = "P2wcio27"
+user = ""
+password = ""
 # Konfiguracja bazy danych
 DATABASE_URL = f"mysql+pymysql://{user}:{password}@localhost:3306/production"
 engine = create_engine(DATABASE_URL)
@@ -65,25 +66,58 @@ class FixedCost(Base):
     name_of_fixed_cost = Column(String(255), nullable=False)
     cost = Column(Float, nullable=False)
 
+class ProductsMade(Base):
+    __tablename__ = 'products_made'
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer)
+    product_name = Column(String)
+    quantity = Column(Float)
+    change_date = Column(String)
+
+class Warehouse(Base):
+    __tablename__ = "warehouse"
+    id = Column(Integer, primary_key=True)
+    resource_name = Column(String)
+    resource_price = Column(Float)
+    quantity = Column(Float)
+    minimum_quantity = Column(Float)
+    order_now = Column(TINYINT)
+    change_date = Column(String)
+
+
 Base.metadata.create_all(engine)
 
 class Application(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Aplikacja do zarządzania produktami i surowcami")
-
+        self.configure(background="#f7f7f7")
+        self.geometry('1100x400')
+        self.resizable(True, True)
+        self.minsize(1100, 400)
         tabControl = ttk.Notebook(self)
-        self.tab1 = ttk.Frame(tabControl)
-        self.tab2 = ttk.Frame(tabControl)
-        self.tab3 = ttk.Frame(tabControl)
-        self.tab4 = ttk.Frame(tabControl)
-        self.tab5 = ttk.Frame(tabControl)
+        self.tab1 = tk.Frame(tabControl)
+        self.tab1.configure(background="#d6d390")
+        self.tab2 = tk.Frame(tabControl)
+        self.tab2.configure(background="#d6d390")
+        self.tab3 = tk.Frame(tabControl)
+        self.tab3.configure(background="#d6d390")
+        self.tab4 = tk.Frame(tabControl)
+        self.tab4.configure(background="#d6d390")
+        self.tab5 = tk.Frame(tabControl)
+        self.tab5.configure(background="#d6d390")
+        self.tab6 = tk.Frame(tabControl)
+        self.tab6.configure(background="#d6d390")
+        self.tab7 = tk.Frame(tabControl)
+        self.tab7.configure(background="#d6d390")
 
         tabControl.add(self.tab1, text="Aktualizacja cen surowców")
         tabControl.add(self.tab2, text="Koszt jednostkowy produktu")
         tabControl.add(self.tab3, text="Przypisywanie surowców do produktu")
-        tabControl.add(self.tab4, text="Dodawanie surowców do bazy")
-        tabControl.add(self.tab5, text="Edycja kosztów stałych")
+        tabControl.add(self.tab4, text="Dodaj surowce")
+        tabControl.add(self.tab5, text="Koszty stałe")
+        tabControl.add(self.tab6, text="Stan Magazynu")
+        tabControl.add(self.tab7, text="Dzisiejsza produkcja")
         tabControl.pack(expand=1, fill="both")
 
         self.create_tab1()
@@ -91,36 +125,52 @@ class Application(tk.Tk):
         self.create_tab3()
         self.create_tab4()
         self.create_tab5()
+        self.create_tab6()
+        self.create_tab7()
 
     def create_tab1(self):
 
-        self.tab1.grid_columnconfigure(tuple(range(200)), weight=1)
-        self.tab1.grid_rowconfigure(tuple(range(200)), weight=1)
+        self.tab1_left_frame = tk.Frame(self.tab1, width=200, height=400)
+        self.tab1_left_frame.grid(row=0, column=0, padx=10, pady=5)
+        self.tab1_left_frame.configure(bg="#B0B781")
+        self.tab1_right_frame = tk.Frame(self.tab1, width=200, height=600)
+        self.tab1_right_frame.grid(row=0, column=1, padx=10, pady=5)
+        self.tab1_right_frame.configure(background="#B0B781")
+        #self.tab1.grid_columnconfigure(tuple(range(200)), weight=1)
+        #self.tab1.grid_rowconfigure(tuple(range(200)), weight=1)
+#
+        #self.tab1.grid_columnconfigure(tuple(range(200)), weight=1)
+        #self.tab1.grid_rowconfigure(tuple(range(200)), weight=1)
 
-        self.label1 = ttk.Label(self.tab1, text="Nazwa surowca:")
-        self.label1.grid(column=0, row=0, padx=10, pady=10)
+        self.label1 = tk.Label(self.tab1_left_frame, text="Nazwa surowca:")
+        self.label1.grid(column=0, row=0, padx=50, pady=10)
+        self.label1.configure(background="#B0B781")
 
-        self.resource_combobox = ttk.Combobox(self.tab1)
-        self.resource_combobox.grid(column=0, row=1, padx=10, pady=10)
+
+        self.resource_combobox = ttk.Combobox(self.tab1_left_frame)
+        self.resource_combobox.grid(column=0, row=1, padx=50, pady=10)
         self.resource_combobox.bind("<<ComboboxSelected>>", self.display_current_resource_price_and_treeview)
         #self.resource_combobox.bind("<<ComboboxSelected>>", self.sort_column, add=True )
         self.load_surowce(self.resource_combobox)
 
 
 
-        self.label2 = ttk.Label(self.tab1, text="Nowa cena:")
-        self.label2.grid(column=1, row=0, padx=10, pady=10)
+        self.label2 = tk.Label(self.tab1_left_frame, text="Nowa cena:")
+        self.label2.grid(column=0, row=3, padx=10, pady=10)
+        self.label2.configure(background="#B0B781")
 
-        self.cena_entry = ttk.Entry(self.tab1)
-        self.cena_entry.grid(column=1, row=1, columnspan=1, padx=10, pady=10)
+        self.cena_entry = ttk.Entry(self.tab1_left_frame)
+        self.cena_entry.grid(column=0, row=4, columnspan=1, padx=10, pady=10)
 
-        self.current_price_label = ttk.Label(self.tab1, text="Aktualna cena: ")
+        self.current_price_label = tk.Label(self.tab1_left_frame, text="Aktualna cena: ")
         self.current_price_label.grid(column=0, row=2, padx=10, pady=10)
+        self.current_price_label.configure(background="#D6F599")
 
-        self.update_button = ttk.Button(self.tab1, text="Aktualizuj cenę", command=self.update_price)
-        self.update_button.grid(column=1, row=3, columnspan=2, padx=10, pady=10)
+        self.update_button = tk.Button(self.tab1_left_frame, text="Aktualizuj cenę", command=self.update_price)
+        self.update_button.grid(column=0, row=5, columnspan=2, padx=10, pady=10)
+        self.update_button.configure(background="#F5A999")
 
-        self.filter_button = ttk.Button(self.tab1, text="Filtrowanie ▼", command=self.toggle_filter_window)
+        self.filter_button = ttk.Button(self.tab1_right_frame, text="Filtrowanie ▼", command=self.toggle_filter_window)
         self.filter_button.grid(column=0, row=3, columnspan=2, padx=10, pady=10)
 
         self.filter_window = tk.Toplevel(self)
@@ -128,6 +178,7 @@ class Application(tk.Tk):
         self.filter_window.withdraw()  # Ukryj okno na początku
         self.filter_window.protocol("WM_DELETE_WINDOW", self.hide_filter_window)  # Obsługa zamknięcia okna
 
+        self.filter_window.minsize(width=200, height=400)
 
         #self.filter_frame = ttk.Frame(self.tab1)
         self.filter_frame = ttk.Frame(self.filter_window)
@@ -147,16 +198,16 @@ class Application(tk.Tk):
 
 
 
-        self.history_tree = ttk.Treeview(self.tab1, columns=("resource_id", "resource_name", "resource_price", "change_date"),
+        self.history_tree = ttk.Treeview(self.tab1_right_frame, columns=("resource_id", "resource_name", "resource_price", "change_date"),
                                          show="headings")
         self.history_tree.heading("resource_id", text="ID surowca", anchor=tk.CENTER)
         self.history_tree.heading("resource_name", text= "Nazwa surowca", anchor=tk.CENTER)
         self.history_tree.heading("resource_price", text="Cena", anchor=tk.CENTER)
         self.history_tree.heading("change_date", text="Data zmiany", anchor=tk.CENTER)
-        self.history_tree.column("resource_id", anchor=tk.CENTER)
-        self.history_tree.column("resource_name", anchor=tk.CENTER)
-        self.history_tree.column("resource_price", anchor=tk.CENTER)
-        self.history_tree.column("change_date", anchor=tk.CENTER)
+        self.history_tree.column("resource_id", minwidth=0, width=100, anchor=tk.CENTER)
+        self.history_tree.column("resource_name", minwidth=0, width=200, anchor=tk.CENTER)
+        self.history_tree.column("resource_price", minwidth=0, width=100, anchor=tk.CENTER)
+        self.history_tree.column("change_date", minwidth=0, width=200, anchor=tk.CENTER)
         self.history_tree.bind("<Button-1>", self.sort_column)
         self.history_tree.grid(column=0, row=5, columnspan=2, padx=10, pady=10)
 
@@ -272,24 +323,36 @@ class Application(tk.Tk):
 
 
     def create_tab2(self):
-        self.label3 = ttk.Label(self.tab2, text="Nazwa produktu:")
-        self.label3.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
 
-        self.product_combobox = ttk.Combobox(self.tab2)
+        self.tab2_left_frame = tk.Frame(self.tab2, width=200, height=300)
+        self.tab2_left_frame.grid(row=0, column=0, padx=10, pady=10)
+        self.tab2_left_frame.configure(bg="#B0B781")
+
+        self.tab2_right_frame = tk.Frame(self.tab2, width=600, height=300)
+        self.tab2_right_frame.grid(row=0, column=1, padx=10, pady=10)
+        self.tab2_right_frame.configure(bg="#B0B781")
+
+        self.label3 = tk.Label(self.tab2_left_frame, text="Nazwa produktu:")
+        self.label3.grid(column=0, row=0, padx=10, pady=10)
+        self.label3.configure(bg="#B0B781")
+
+        self.product_combobox = ttk.Combobox(self.tab2_left_frame)
         self.product_combobox.grid(column=1, row=0, padx=10, pady=10)
+        self.product_combobox.configure(state="readonly")
         self.load_products(self.product_combobox)
         self.product_combobox.bind("<<ComboboxSelected>>", self.display_product_cost_history)
+        self.cost_button = tk.Button(self.tab2_left_frame, text="Oblicz koszt", command=self.calculate_cost)
+        self.cost_button.grid(column=0, row=2, columnspan=2, padx=10, pady=10)
+        self.cost_button.configure(background="#F5A999")
 
-        self.cost_button = ttk.Button(self.tab2, text="Oblicz koszt", command=self.calculate_cost)
-        self.cost_button.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
-
-        self.report_buttron = ttk.Button(self.tab2, text="Generuj raport!", command=self.generate_report)
-        self.report_buttron.grid(column=0, row=1, padx=10, pady=10)
+        self.report_buttron = tk.Button(self.tab2_left_frame, text="Generuj raport!", command=self.generate_report)
+        self.report_buttron.grid(column=0, row=3, columnspan=2, padx=10, pady=10)
+        self.report_buttron.configure(background="#9C99F5")
 
         self.result_label = ttk.Label(self.tab2, text="")
         self.result_label.grid(column=0, row=2, columnspan=2, padx=10, pady=10)
 
-        self.product_cost_tree = ttk.Treeview(self.tab2,
+        self.product_cost_tree = ttk.Treeview(self.tab2_right_frame,
                                          columns=("product_id", "product_name", "cost_of_production", "change_date"),
                                          show="headings")
         self.product_cost_tree.heading("product_id", text="ID produtku", anchor=tk.CENTER)
@@ -327,10 +390,12 @@ class Application(tk.Tk):
 
         report_content = f"Raport dla produktu: {product.product_name}\n\n"
         report_content += "Surowce i ich ceny: \n"
-
+        suma = 0
+        # f"{resource.resource_name} - {resource.resource_price} PLN (Ilość: {ilosc}) SUMA: {resource.resource_price*ilosc}\n"
         for resource, ilosc in session.query(Resource, product_resource_table.c.ilosc).filter(product_resource_table.c.product_id == product.id).filter(product_resource_table.c.resource_id == Resource.id):
-            report_content += f"{resource.resource_name} - {resource.resource_price} PLN (Ilość: {ilosc})\n"
-
+            report_content += f"{resource.resource_name} - {round(resource.resource_price,2)*round(ilosc,2)} PLN (Ilość: {ilosc})\n"
+            suma += resource.resource_price*ilosc
+        report_content += f"Suma kosztów dla {product.product_name}: {round(suma,2)} PLN"
         report_text.insert("1.0", report_content)
         report_text.config(state="disabled")
 
@@ -387,7 +452,9 @@ class Application(tk.Tk):
         if selected_product:
             cost_history = session.query(ProductCostProductionHistory).filter_by(
                 product_name=selected_product).order_by(ProductCostProductionHistory.change_date.desc()).all()
+
             for entry in cost_history:
+
                 self.product_cost_tree.insert("", "end",
                                               values=(entry.product_id, entry.product_name, entry.cost_of_production,
                                                       entry.change_date))
@@ -416,6 +483,9 @@ class Application(tk.Tk):
             self.result_label.config(text="Produkt nie znaleziony")
 
     def create_tab3(self):
+
+        self.tab3_left_frame = tk.Frame(self.tab3, width=200, height=400)
+
         self.label4 = ttk.Label(self.tab3, text="Nazwa produktu:")
         self.label4.grid(column=0, row=0, padx=10, pady=10)
 
@@ -562,6 +632,7 @@ class Application(tk.Tk):
 
     def load_price_history(self):
         session = Session()
+        selected_resource = self.resource_combobox.get()
         #resource_name = name
         #print(resource_name)
         if self.resource_combobox.get() == "":
@@ -570,11 +641,14 @@ class Application(tk.Tk):
          #   price_history = session.query(ProductCostProductionHistory).order_by(ProductCostProductionHistory.change_date.desc()).all()
         #else:
         #    price_history = self.display_current_resource_price_and_treeview
-
+        else:
+            price_history = session.query(ResourcePriceHistory).filter_by(resource_name=selected_resource).order_by(
+                ResourcePriceHistory.change_date.desc()).all()
         for entry in price_history:
             self.history_tree.insert("", "end",
                         values=(entry.resource_id, entry.resource_name, entry.resource_price, entry.change_date))
         session.close()
+
 
     def save_product(self):
         selected_product_name = self.product_combobox_tab3.get()
@@ -617,6 +691,10 @@ class Application(tk.Tk):
         column_name = self.history_tree["columns"][column_index]
         current_order = self.history_tree.heading(column_name, "text")
 
+        if event.widget.identify_region(event.x, event.y) != "heading":
+            print(f"Kliknięto w komórkę, sortowanie zostanie zablokowane")
+            return
+
         if event.widget.identify_region(event.x, event.y) == "cell":
             print(f"Kliknięto na wartość w kolumnie {column_name}, sortowanie zostanie zablokowane")
             return
@@ -637,8 +715,9 @@ class Application(tk.Tk):
             for index, (val, item) in enumerate(data):
                 self.history_tree.move(item, "", index)
         else:
-            self.history_tree.delete(*self.history_tree.get_children())
-            self.load_price_history()
+            self.refresh_resource_update_treeview()
+            #self.history_tree.delete(*self.history_tree.get_children())
+            #self.load_price_history()
 
 
     def create_tab5(self):
@@ -650,16 +729,16 @@ class Application(tk.Tk):
         self.label9.grid(column=0, row=0, padx=0, pady=0)
 
         self.new_fixed_cost_entry = ttk.Entry(self.tab5)
-        self.new_fixed_cost_entry.grid(column=1, row=0, padx=10, pady=10)
+        self.new_fixed_cost_entry.grid(column=1, row=0, padx=10, pady=10, sticky='nsew')
 
         self.label10 = ttk.Label(self.tab5, text="Koszt: ")
-        self.label10.grid(column=0, row=1, padx=10, pady=10)
+        self.label10.grid(column=0, row=1, padx=10, pady=10, sticky='nsew')
 
         self.new_fixed_cost_cost = ttk.Entry(self.tab5)
-        self.new_fixed_cost_cost.grid(column=1, row=1, padx=10, pady=10)
+        self.new_fixed_cost_cost.grid(column=1, row=1, padx=10, pady=10, sticky='nsew')
 
         self.add_fixed_cost_button = ttk.Button(self.tab5, text="Dodaj koszt stały")
-        self.add_fixed_cost_button.grid(column=1, row=2, padx=10, pady=10)
+        self.add_fixed_cost_button.grid(column=1, row=2, padx=10, pady=10, sticky='nsew')
 
     def add_fixed_cost(self):
         name = self.entry_name.get()
@@ -695,6 +774,106 @@ class Application(tk.Tk):
         fixed_costs = session.query(FixedCost).all()
         for cost in fixed_costs:
             self.fixed_costs_tree.insert("", "end", values=(cost.name, cost.cost))
+
+    def create_tab6(self):
+        self.resource_cost_tree = ttk.Treeview(self.tab6,
+                                              columns=(
+                                              "resource_id", "resource_name", "cost", "quantity", "minimum_quantity", "order_now", "change_date"),
+                                              show="headings")
+        self.resource_cost_tree.heading("resource_id", text="ID", anchor=tk.CENTER)
+        self.resource_cost_tree.heading("resource_name", text="Nazwa surowca", anchor=tk.CENTER)
+        self.resource_cost_tree.heading("cost", text="Cena", anchor=tk.CENTER)
+        self.resource_cost_tree.heading("quantity", text="Ilość", anchor=tk.CENTER)
+        self.resource_cost_tree.heading("minimum_quantity", text="Minimalna ilość", anchor=tk.CENTER)
+        self.resource_cost_tree.heading("order_now", text="Zamów/kup", anchor=tk.CENTER)
+        self.resource_cost_tree.heading("change_date", text="Data zmiany", anchor=tk.CENTER)
+        self.resource_cost_tree.column("resource_id",minwidth=0, width=50, anchor=tk.CENTER)
+        self.resource_cost_tree.column("resource_name", minwidth=0, width=200, anchor=tk.CENTER)
+        self.resource_cost_tree.column("cost",minwidth=0, width=200, anchor=tk.CENTER)
+        self.resource_cost_tree.column("quantity",minwidth=0, width=100, anchor=tk.CENTER)
+        self.resource_cost_tree.column("minimum_quantity",minwidth=0, width=150, anchor=tk.CENTER)
+        self.resource_cost_tree.column("order_now",minwidth=0, width=100, anchor=tk.CENTER)
+        self.resource_cost_tree.column("change_date",minwidth=0, width=200, anchor=tk.CENTER)
+        self.resource_cost_tree.bind("<Button-1>")
+        self.resource_cost_tree.grid(column=0, row=5, padx=10, pady=10)
+
+    def create_tab7(self):
+
+        #self.tab7_frame = ttk.Frame(self.tab7, width=200, height=400)
+        #self.tab7_frame.grid(column=0, row=0, padx=10, pady=10)
+
+        self.scrollable_frame = ScrollableFrame(self.tab7)
+        self.scrollable_frame.grid(column=0, row=0, padx=10, pady=10)
+        self.entries = {}
+
+        products = session.query(Product).all()
+
+        for i, product in enumerate(products):
+            self.label_tab7 = ttk.Label(self.scrollable_frame.scrollable_frame, text=product.product_name)
+            self.label_tab7.grid(row=i+1, column=0, padx=5, pady=5, sticky='w')
+
+            self.entry_tab7 = ttk.Entry(self.scrollable_frame.scrollable_frame)
+            self.entry_tab7.grid(row=i+1, column=1, padx=5, pady=5, sticky='w')
+            self.entries[product.id] = self.entry_tab7
+
+        self.tab7_frame = ttk.Frame(self.tab7, width=200, height=400)
+        self.tab7_frame.grid(column=1, row=0, padx=10, pady=10, sticky="nsew")
+
+
+        self.production_tree = ttk.Treeview(self.tab7_frame, columns=("product_name", "ilosc"), show="headings")
+        self.production_tree.heading("product_name", text="Produkt", anchor=tk.CENTER)
+        self.production_tree.heading("ilosc", text="Ilość", anchor=tk.CENTER)
+
+        self.submit_button = ttk.Button(self.tab7_frame, text="Dodaj Produkty", command=self.add_products)
+        self.submit_button.grid(row=len(products), column=0, columnspan=2, pady=10)
+
+        self.scrollbar = ttk.Scrollbar(self.tab7_frame, orient="vertical", command=self.production_tree.yview)
+        self.production_tree.configure(yscrollcommand=self.scrollbar.set)
+
+        for col in self.production_tree["columns"]:
+            self.production_tree.column(col, anchor="center")
+
+        self.production_tree.tag_configure('centered', anchor='center')
+
+        self.production_tree.grid(row=len(products)+1, column=0, columnspan=2, pady=10, sticky="nsew")
+        #self.scrollbar.grid(row=0, column=1,sticky="ns")
+
+        self.production_tree.grid_rowconfigure(0, weight=1)
+        self.production_tree.grid_columnconfigure(0, weight=1)
+        self.refresh_treeview()
+
+    def add_products(self):
+        for product_id, self.entry_tab7 in self.entries.items():
+            quantity = self.entry_tab7.get()
+            if quantity:
+                current_product = session.query(Product).filter_by(id=product_id).first()
+                today = date.today()
+
+                existing_record = session.query(ProductsMade).filter(
+                    ProductsMade.product_id == product_id,
+                    func.date(ProductsMade.change_date) == today
+                ).first()
+
+                if existing_record:
+                    existing_record.quantity += float(quantity)
+                else:
+                    new_product_made = ProductsMade(
+                        product_id=current_product.id,
+                        product_name=current_product.product_name,
+                        quantity=float(quantity),
+                        change_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    )
+                    session.add(new_product_made)
+                session.commit()
+        self.refresh_treeview()
+    def refresh_treeview(self):
+        for row in self.production_tree.get_children():
+            self.production_tree.delete(row)
+
+        products_made = session.query(ProductsMade).order_by(ProductsMade.change_date.desc()).all()
+        for product_made in products_made:
+            self.production_tree.insert('', 'end', values=(
+            product_made.product_name, product_made.quantity), tags=('centered'))
 
 
 if __name__ == "__main__":
