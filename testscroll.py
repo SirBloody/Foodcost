@@ -7,8 +7,11 @@ class ScrollableFrame(tk.Frame):
         super().__init__(container, *args, **kwargs)
 
         self.canvas = tk.Canvas(self, width=width, height=height)
+        self.canvas.config(highlightthickness=0)
+        self.canvas.configure(background="#B0B781")
         self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = ttk.Frame(self.canvas)
+        self.scrollable_frame = tk.Frame(self.canvas)
+        self.scrollable_frame.configure(background="#B0B781")
 
         self.scrollable_frame.bind(
             "<Configure>",
@@ -25,6 +28,14 @@ class ScrollableFrame(tk.Frame):
 
         # Bind mouse wheel event to canvas scroll
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind("<Enter>", self.bind_to_mousewheel)
+        self.canvas.bind("<Leave>", self.unbind_from_mousewheel)
+    def bind_to_mousewheel(self, event):
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
+    def unbind_from_mousewheel(self, event):
+        self.canvas.unbind_all("<MouseWheel>")
+
 
     def _on_mousewheel(self, event):
         scroll_region = self.canvas.bbox("all")

@@ -804,21 +804,23 @@ class Application(tk.Tk):
 
         self.scrollable_frame = ScrollableFrame(self.tab7)
         self.scrollable_frame.grid(column=0, row=0, padx=10, pady=10)
+        self.scrollable_frame.configure(background="#B0B781")
         self.entries = {}
 
         products = session.query(Product).all()
 
         for i, product in enumerate(products):
-            self.label_tab7 = ttk.Label(self.scrollable_frame.scrollable_frame, text=product.product_name)
+            self.label_tab7 = tk.Label(self.scrollable_frame.scrollable_frame, text=product.product_name)
             self.label_tab7.grid(row=i+1, column=0, padx=5, pady=5, sticky='w')
+            self.label_tab7.configure(background="#B0B781")
 
-            self.entry_tab7 = ttk.Entry(self.scrollable_frame.scrollable_frame)
+            self.entry_tab7 = tk.Entry(self.scrollable_frame.scrollable_frame)
             self.entry_tab7.grid(row=i+1, column=1, padx=5, pady=5, sticky='w')
             self.entries[product.id] = self.entry_tab7
 
-        self.tab7_frame = ttk.Frame(self.tab7, width=200, height=400)
+        self.tab7_frame = tk.Frame(self.tab7, width=200, height=400)
         self.tab7_frame.grid(column=1, row=0, padx=10, pady=10, sticky="nsew")
-
+        self.tab7_frame.configure(background="#B0B781")
 
         self.production_tree = ttk.Treeview(self.tab7_frame, columns=("product_name", "ilosc"), show="headings")
         self.production_tree.heading("product_name", text="Produkt", anchor=tk.CENTER)
@@ -827,7 +829,7 @@ class Application(tk.Tk):
         self.submit_button = ttk.Button(self.tab7_frame, text="Dodaj Produkty", command=self.add_products)
         self.submit_button.grid(row=len(products), column=0, columnspan=2, pady=10)
 
-        self.scrollbar = ttk.Scrollbar(self.tab7_frame, orient="vertical", command=self.production_tree.yview)
+        self.scrollbar = tk.Scrollbar(self.tab7_frame, orient="vertical", command=self.production_tree.yview)
         self.production_tree.configure(yscrollcommand=self.scrollbar.set)
 
         for col in self.production_tree["columns"]:
