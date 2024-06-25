@@ -11,8 +11,8 @@ from reportlab.pdfbase import pdfmetrics
 from testscroll import ScrollableFrame
 from sqlalchemy.dialects.mysql import DECIMAL, TINYINT
 
-user = ""
-password = ""
+user = "?"
+password = "?"
 # Konfiguracja bazy danych
 DATABASE_URL = f"mysql+pymysql://{user}:{password}@localhost:3306/production"
 engine = create_engine(DATABASE_URL)
